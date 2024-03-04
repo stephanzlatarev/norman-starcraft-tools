@@ -1,0 +1,7 @@
+archive
+node_modules
+
+.settings
+package-lock.json
+
+*secrets*
