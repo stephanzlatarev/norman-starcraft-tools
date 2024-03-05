@@ -4,9 +4,12 @@
   "type": "module",
   "scripts": {
     "ladder": "node ./ladder/ladder.js",
-    "read-map": "node ./map/read.js"
+    "read-map": "node ./map/read.js",
+    "show-map": "node ./map/show.js",
+    "test-map": "node ./map/test.js"
   },
   "dependencies": {
-    "@node-sc2/proto": "^0.6.0-alpha.0"
+    "@node-sc2/proto": "^0.6.0-alpha.0",
+    "ttys": "^0.0.3"
   }
 }

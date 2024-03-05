@@ -13,13 +13,13 @@ async function go() {
   const observation = await client.observation();
 
   const units = observation.observation.rawData.units.filter(unit => (unit.owner !== 1) && (unit.owner !== 2)).map(unit => ({
-    owner: unit.owner,
+    tag: unit.tag,
     unitType: unit.unitType,
     radius: unit.radius,
     pos: {
       x: unit.pos.x,
       y: unit.pos.y,
-    }
+    },
   }));
 
   showGrid("Placement", gameInfo.startRaw.placementGrid);
