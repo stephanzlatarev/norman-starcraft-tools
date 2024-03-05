@@ -131,7 +131,7 @@ function getStats(botId, botName, matches) {
   for (let i = matches.length - 1; i >= 0; i--) {
     const match = matches[i];
     const opponent = (match.result.bot2_name === botName) ? match.result.bot1_name : match.result.bot2_name;
-    if (!stats[opponent]) stats[opponent] = { maps: [], results: [], matches: 0, wins: 0 };
+    if (!stats[opponent]) stats[opponent] = { maps: [], results: [], matches: 0, wins: 0, ties: 0 };
     if (stats[opponent].matches >= HISTORY) continue;
 
     const data = stats[opponent];
@@ -142,9 +142,12 @@ function getStats(botId, botName, matches) {
 
     if (match.result.winner === botId) {
       data.wins++;
-      data.results.push(true);
+      data.results.push(1);
+    } else if (!match.result.winner) {
+      data.ties++;
+      data.results.push(0.5);
     } else {
-      data.results.push(false);
+      data.results.push(0);
     }
   }
 
@@ -160,7 +163,7 @@ function getSuccessRateByDivision(stats, bots, ranks) {
   for (const r in ranks) {
     const rank = ranks[r];
     if (rank && !rates[rank.division]) {
-      rates[rank.division] = { wins: 0, matches: 0 };
+      rates[rank.division] = { wins: 0, ties: 0, matches: 0 };
     }
   }
 
@@ -169,6 +172,7 @@ function getSuccessRateByDivision(stats, bots, ranks) {
     const rank = ranks[bots[opponent]];
     if (!rank) continue;
     rates[rank.division].wins += data.wins;
+    rates[rank.division].ties += data.ties;
     rates[rank.division].matches += data.matches;
   }
   return rates;
@@ -208,7 +212,7 @@ function line(competitionMaps, mapNames, data) {
   process.stdout.write("  ");
   for (let i = HISTORY - 1; i >= 0; i--) {
     if (i < data.results.length) {
-      process.stdout.write(data.results[i] ? "\x1b[48;2;0;160;0m": "\x1b[48;2;160;0;0m");
+      process.stdout.write("\x1b[48;2;" + resultAsColor(data.results[i]) + "m");
     }
     process.stdout.write(" ");
   }
@@ -218,7 +222,7 @@ function line(competitionMaps, mapNames, data) {
   for (const mapName of competitionMaps) {
     for (let i = 0; i < Math.max(data.maps.length, HISTORY); i++) {
       if ((9 - i < data.maps.length) && (mapNames[data.maps[HISTORY - i - 1]] === mapName)) {
-        process.stdout.write(data.results[HISTORY - i - 1] ? "\x1b[48;2;0;160;0m": "\x1b[48;2;160;0;0m");
+        process.stdout.write("\x1b[48;2;" + resultAsColor(data.results[HISTORY - i - 1]) + "m");
       } else {
         process.stdout.write("\x1b[0m");
       }
@@ -239,14 +243,24 @@ function cell(text, size) {
   return line;
 }
 
+function resultAsColor(result) {
+  if (result > 0.5) {
+    return "0;160;0";
+  } else if (result < 0.5) {
+    return "160;0;0";
+  }
+
+  return "160;160;0";
+}
+
 function percentageAsColor(data) {
-  const p = Math.floor(data.wins*160/data.matches);
+  const p = Math.floor((data.wins * 160 + data.ties * 80)/ data.matches);
   return (160 - p) + ";" + p + ";0";
 }
 
 function percentageAsText(data) {
   if (data.wins === data.matches) return "100%";
-  const p = Math.floor(data.wins*100/data.matches);
+  const p = Math.floor((data.wins * 100 + data.ties * 50)/data.matches);
   if (p < 10) return "  " + p + "%";
   return " " + p + "%";
 }
