@@ -229,7 +229,7 @@ function findPlot(index, prefix, startX, startY, endX, endY, width, height) {
 function createBoard(map, filter) {
   const board = JSON.parse(JSON.stringify(map.lines));
 
-  if (!filter || filter.harvest) {
+  if (filter && filter.harvest) {
     for (const unit of Units.resources().values()) {
       const x = Math.floor(unit.body.x);
       const y = Math.floor(unit.body.y);
