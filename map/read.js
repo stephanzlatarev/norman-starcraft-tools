@@ -11,8 +11,9 @@ async function go() {
 
   const gameInfo = await client.gameInfo();
   const observation = await client.observation();
+  const unitTypes = await client.data({ unitTypeId: true });
 
-  const units = observation.observation.rawData.units.filter(unit => (unit.owner !== 1) && (unit.owner !== 2)).map(unit => ({
+  const units = observation.observation.rawData.units.map(unit => ({
     tag: unit.tag,
     unitType: unit.unitType,
     radius: unit.radius,
@@ -22,16 +23,36 @@ async function go() {
     },
   }));
 
+  const unitTypeIds = new Set();
+  for (const unit of units) {
+    unitTypeIds.add(unit.unitType);
+  }
+
+  const types = unitTypes.units.filter(type => unitTypeIds.has(type.unitId)).map(type => ({
+    unitId: type.unitId,
+    name: type.name,
+    available: type.available,
+    attributes: type.attributes,
+    hasMinerals: type.hasMinerals,
+    hasVespene: type.hasVespene,
+    race: type.race,
+  }));
+
   showGrid("Placement", gameInfo.startRaw.placementGrid);
   showGrid("Pathing", gameInfo.startRaw.pathingGrid);
   showGrid("Height", gameInfo.startRaw.terrainHeight);
 
   const file = "map/raw/" + config.localMap.mapPath.split(".")[0] + ".json";
   fs.writeFileSync(file, JSON.stringify({
-    playableArea: gameInfo.startRaw.playableArea,
-    placementGrid: gameInfo.startRaw.placementGrid,
-    pathingGrid: gameInfo.startRaw.pathingGrid,
-    terrainHeight: gameInfo.startRaw.terrainHeight,
+    info: {
+      startRaw: {
+        placementGrid: gameInfo.startRaw.placementGrid,
+        playableArea: gameInfo.startRaw.playableArea,
+        pathingGrid: gameInfo.startRaw.pathingGrid,
+        terrainHeight: gameInfo.startRaw.terrainHeight
+      }
+    },
+    types: { units: types },
     units: units
   }));
 
