@@ -1,7 +1,7 @@
 import fs from "fs";
 import https from "https";
 
-const COMPETITION = 25;
+const COMPETITION = 26;
 const BOTS = {
   518: "norman",
   605: "nida",
@@ -86,7 +86,7 @@ async function goBot(competition, mapNames, bots, ranks, botId, botName) {
   console.log();
   console.log(botName);
   console.log();
-  showStats(stats, maps.map(id => mapNames[id]), mapNames, bots, ranks, rates);
+  showStats(stats, maps.filter(id => !!mapNames[id]).map(id => mapNames[id]), mapNames, bots, ranks, rates);
   console.log();
 }
 
