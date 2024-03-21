@@ -16,7 +16,7 @@ Types.sync(data.types);
 Units.sync(data.units);
 Map.sync(data.info);
 
-const board = Map.board({ harvest: 1, depots: 1, hubs: 1, units: 1 });
+const board = Map.board();
 for (let y = Map.top; y < Map.top + Map.height; y++) {
   showLine(board[y]);
 }

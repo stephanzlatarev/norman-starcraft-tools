@@ -66,7 +66,7 @@ function readTerrainGrid(map, placementGrid, pathingGrid) {
 
 function locateDepots(map) {
   const clusters = clusterResources(findClusters());
-  const board = createBoard(map, { harvest: 1, units: 1 });
+  const board = createBoard(map, { harvest: 1, resources: 1, obstacles: 1 });
 
   for (const cluster of clusters) {
     calculateDepotCoordinates(board, cluster);
@@ -194,7 +194,7 @@ function calculateDepotCoordinates(board, cluster) {
 
 function locateHubs(map, size) {
   const plots = [];
-  const board = createBoard(map, { depots: 1, units: 1 });
+  const board = createBoard(map, { depots: 1, resources: 1, obstacles: 1 });
 
   for (let y = 0; y < board.length - size; y += size) {
     for (let x = 0; x < board[y].length - size; x += size) {
@@ -229,7 +229,7 @@ function findPlot(index, prefix, startX, startY, endX, endY, width, height) {
 function createBoard(map, filter) {
   const board = JSON.parse(JSON.stringify(map.lines));
 
-  if (filter.harvest) {
+  if (!filter || filter.harvest) {
     for (const unit of Units.resources().values()) {
       const x = Math.floor(unit.body.x);
       const y = Math.floor(unit.body.y);
@@ -243,7 +243,7 @@ function createBoard(map, filter) {
     }
   }
 
-  if (filter.units) {
+  if (!filter || filter.resources) {
     for (const unit of Units.resources().values()) {
       const x = Math.floor(unit.body.x);
       const y = Math.floor(unit.body.y);
@@ -256,19 +256,21 @@ function createBoard(map, filter) {
         add(board, "?", x, y, 1, 1);
       }
     }
+  }
 
+  if (!filter || filter.obstacles) {
     for (const unit of Units.obstacles().values()) {
       add(board, "X", Math.floor(unit.body.x) - 1, Math.floor(unit.body.y) - 1, 3, 3);
     }
   }
 
-  if (filter.depots) {
+  if (!filter || filter.depots) {
     for (const depot of Depot.list()) {
       add(board, "N", Math.floor(depot.x - 2.5), Math.floor(depot.y - 2.5), 5, 5);
     }
   }
 
-  if (filter.hubs) {
+  if (!filter || filter.hubs) {
     for (const hub of Hub.list()) {
       add(board, "H", Math.floor(hub.x - 4), Math.floor(hub.y - 4), 8, 8);
     }
