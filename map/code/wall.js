@@ -10,35 +10,35 @@ export default function(board) {
 
   if (!zone || (zone.r !== 4)) return;
 
-  const anchors = findAnchors(board, zone, ...expansions);
-
-  createWall(zone, anchors);
+  createWall(zone, findAnchors(board, zone, ...expansions));
 }
 
 function createWall(zone, anchors) {
-  const bottomX = Math.max(zone.x - 4, anchors.bottom.x - 3);
+  if (!anchors.direction || !anchors.top || !anchors.bottom) return;
+
+  const bottomX = Math.max(zone.x - 4, anchors.bottom.x - 2);
   const topX = bottomX + 4;
 
   if ((topX <= anchors.top.x - 3) || (topX > anchors.top.x)) return;
 
-  const buildingPlots = [
-    { x: bottomX + 1.5, y: anchors.bottom.y - 3 + 1.5, isFree: true},
-    { x: bottomX + 1.5, y: anchors.bottom.y - 6 + 1.5, isFree: true},
-    { x: topX + 1.5, y: anchors.top.y + 1 + 1.5, isFree: true},
+  const x = bottomX + 5;
+  const y = anchors.bottom.y - 4;
+  const d = anchors.direction.x;
+  const center = { x: x - ((d > 0) ? 1 : 0), y: y };
+  const pylon = { x: center.x - d * 2, y: center.y, isFree: true };
+
+  const wall = new Hub(pylon.x, pylon.y, 4);
+  wall.isWall = true;
+  wall.pylonPlots = [pylon];
+  wall.buildingPlots = [
+    { x: x - 2.5, y: y + 2.5, isFree: true},
+    { x: center.x + 2.5 * d, y: center.y + 0.5 * d, isFree: true},
+    { x: x + 1.5, y: y - 2.5, isFree: true},
   ];
 
-  let pylon = [];
-
-  if (anchors.direction.x > 0) {
-    pylon = { x: bottomX - 2 + 1, y: anchors.bottom.y - 5 + 1, isFree: true };
-  } else {
-    pylon = { x: bottomX + 5 + 1, y: anchors.bottom.y - 5 + 1, isFree: true };
+  if (d > 0) {
+    wall.buildingPlots.reverse();
   }
-
-  const hub = new Hub(pylon.x, pylon.y, 4);
-  hub.isWall = true;
-  hub.buildingPlots = buildingPlots;
-  hub.pylonPlots = [pylon];
 
   zone.remove();
 }
@@ -89,10 +89,10 @@ function findTopAnchor(board, zone, direction) {
   const y = Math.floor(zone.y - zone.r - 1);
   const d = -direction.x;
   const xx = Math.floor(zone.x);
-  const x1 = Math.floor(zone.x - zone.r * d);
-  const x2 = Math.floor(zone.x + zone.r * d);
+  const x1 = Math.floor(zone.x - zone.r * d - d);
+  const x2 = Math.floor(zone.x + zone.r * d + d);
 
-  if (x1  * x2 * d * d > 0) {
+  if (x1 * x2 * d * d > 0) {
     let anchor;
     let bargain = true;
 
@@ -108,10 +108,10 @@ function findBottomAnchor(board, zone, direction) {
   const y = Math.floor(zone.y + zone.r);
   const d = -direction.x;
   const xx = Math.floor(zone.x);
-  const x1 = Math.floor(zone.x - zone.r * d);
-  const x2 = Math.floor(zone.x + zone.r * d);
+  const x1 = Math.floor(zone.x - zone.r * d - d);
+  const x2 = Math.floor(zone.x + zone.r * d + d);
 
-  if (x1  * x2 * d * d > 0) {
+  if (x1 * x2 * d * d > 0) {
     let anchor;
     let bargain = true;
 
