@@ -186,7 +186,7 @@ function clusterResources(clusters) {
 }
 
 function createZones(board) {
-  for (let size = 16; size >= 6; size--) {
+  for (let size = 16; size >= 6; size -= 2) {
     const type = (size >= 10) ? "H" : "O";
     const radius = size / 2;
     const blocks = board.many(type, size, size, true);
