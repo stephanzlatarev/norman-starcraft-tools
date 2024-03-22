@@ -1,11 +1,11 @@
-import Pin from "./pin.js";
+import Zone from "./zone.js";
 
 const hubs = [];
 
-export default class Hub extends Pin {
+export default class Hub extends Zone {
 
-  constructor(x, y) {
-    super({ x, y });
+  constructor(x, y, r) {
+    super(x, y, r);
 
     this.isPowered = false;
 
