@@ -3,6 +3,7 @@ import Depot from "./depot.js";
 import Hub from "./hub.js";
 import Zone from "./zone.js";
 import Units from "../units.js";
+import createWall from "./wall.js";
 
 class Map {
 
@@ -19,6 +20,8 @@ class Map {
 
     createDepots(populateBoard(this.board.copy(), { harvest: 1, resources: 1, obstacles: 1 }));
     createZones(populateBoard(this.board.copy(), { depots: 1, resources: 1, obstacles: 1 }));
+
+    createWall(populateBoard(this.board.copy(), { obstacles: 1 }));
   }
 
   get(filter) {
@@ -245,7 +248,16 @@ function populateBoard(board, filter) {
 
   if (!filter || filter.hubs) {
     for (const hub of Hub.list()) {
-      board.one("H", Math.floor(hub.x - 4), Math.floor(hub.y - 4), 8, 8);
+      const size = hub.r + hub.r;
+
+      board.one("H", Math.floor(hub.x - hub.r), Math.floor(hub.y - hub.r), size, size);
+
+      for (const pylon of hub.pylonPlots) {
+        board.one("P", pylon.x - 1, pylon.y - 1, 2, 2);
+      }
+      for (const building of hub.buildingPlots) {
+        board.one("B", building.x - 1.5, building.y - 1.5, 3, 3);
+      }
     }
   }
 

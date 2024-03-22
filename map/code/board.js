@@ -11,6 +11,10 @@ export default class Board {
     return new Board(Array.from(this.lines));
   }
 
+  get(x, y) {
+    return this.lines[y][x];
+  }
+
   one(symbol, x, y, w, h) {
     const ww = Math.min(w, this.lines[0].length - x);
     const hh = Math.min(h, this.lines.length - y);

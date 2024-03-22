@@ -46,6 +46,8 @@ function chooseColor(symbol) {
   if (symbol === "N") return "255;215;0";
   if (symbol === "O") return "147;112;219";
   if (symbol === "H") return "150;100;0";
+  if (symbol === "B") return "255;215;0";
+  if (symbol === "P") return "255;215;0";
   if (symbol === "X") return "139;0;0";
   if (symbol === "?") return "139;0;0";
   if (symbol === "/") return "100;100;100";
