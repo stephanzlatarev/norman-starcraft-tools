@@ -38,7 +38,11 @@ export default class Hub extends Zone {
   }
 
   static order() {
-    hubs.sort((a, b) => (a.d - b.d));
+    hubs.sort(function(a, b) {
+      if (a.isWall !== b.isWall) return a.isWall ? -1 : 1;
+
+      return a.d - b.d;
+    });
   }
 
 }
