@@ -1,17 +1,45 @@
+import Zone from "./zone.js";
 
 const TRACE = false;
 const SPAN = 8;
 
-// TODO: Optimize the function and make it a method on Corridor to create a wall blueprint
-export function createWalls(board, base) {
-  const blueprint = {
-    left: null,
-    center: null,
-    right: null,
-    pylon: null,
-    battery: null,
-  };
+const walls = [];
 
+export default class Wall extends Zone {
+
+  constructor(x, y, r, blueprint) {
+    super(x, y, r);
+
+    this.blueprint = blueprint;
+
+    walls.push(this);
+  }
+
+  getPlot(type) {
+    if (type.name === "Pylon") {
+      return this.blueprint.pylon;
+    } else if (type.name === "ShieldBattery") {
+      return this.blueprint.battery;
+    } else if (!this.blueprint.left.isTaken) {
+      this.blueprint.left.isTaken = true;
+      return this.blueprint.left;
+    } else if (!this.blueprint.center.isTaken) {
+      this.blueprint.center.isTaken = true;
+      return this.blueprint.center;
+    } else if (!this.blueprint.right.isTaken) {
+      this.blueprint.right.isTaken = true;
+      return this.blueprint.right;
+    }
+  }
+
+  static list() {
+    return walls;
+  }
+
+}
+
+// TODO: Move this function to Corridor to wall the given corridor
+export function createWalls(board, base) {
   // There must be exactly one corridor out of the base, leading to the natural
   if (TRACE) console.log("base:", !!base.depot);
   if (!base.depot || !base.depot.corridors || (base.depot.corridors.length !== 1)) return;
@@ -49,45 +77,8 @@ export function createWalls(board, base) {
 
   if (TRACE) { fillGrid(grid, "L", split.left); fillGrid(grid, "R", split.right); showGrid(grid); fillGrid(grid, " ", split.left); fillGrid(grid, " ", split.right); }
 
-  // Find one position from each curve where the distance between them is the shortest distance
-  populateWallWings(blueprint, split.left, split.right);
-
-  if (!blueprint.left || !blueprint.right) return;
-  if (TRACE) { fillGrid(grid, "L", [blueprint.left], 1); fillGrid(grid, "R", [blueprint.right], 1); showGrid(grid); }
-
-  // Find one position where distance from left and right wings is 3 and 4
-  blueprint.center = selectCenterWing(blueprint.left, blueprint.right);
-  if (!blueprint.center) {
-    blueprint.center = selectCenterWing(blueprint.right, blueprint.left);
-
-    if (blueprint.center) {
-      // Make sure the passage is between the center and right wing
-      const swap = blueprint.left;
-      blueprint.left = blueprint.right;
-      blueprint.right = swap;
-    }
-  }
-
-  if (!blueprint.center) return;
-  if (TRACE) { fillGrid(grid, "C", [blueprint.center], 1); showGrid(grid); }
-
-  // Mark grid with wall wings and path in between
-  fillGrid(grid, "/", [blueprint.right], 3);
-  fillGrid(grid, "#", [blueprint.left, blueprint.center, blueprint.right], 1);
-
-  if (TRACE) showGrid(grid);
-
-  blueprint.battery = selectSupport(grid, blueprint, direction, 6);
-  if (!blueprint.battery) return;
-
-  fillGrid(grid, "@", [blueprint.battery], 0, 0, 1, 1);
-
-  blueprint.pylon = selectSupport(grid, blueprint, direction, 6.5);
-  if (!blueprint.pylon) return;
-
-  fillGrid(grid, "O", [blueprint.pylon], 0, 0, 1, 1);
-  
-  if (TRACE) showGrid(grid);
+  // Choose where to place the wall
+  const blueprint = createBlueprint(grid, split.left, split.right, direction);
 
   setBlueprintToCorridor(corridorToWall, blueprint);
 
@@ -101,12 +92,18 @@ function setBlueprintToCorridor(corridor, blueprint) {
   blueprint.center.y += corridor.y - SPAN + 0.5;
   blueprint.right.x += corridor.x - SPAN + 0.5;
   blueprint.right.y += corridor.y - SPAN + 0.5;
-  blueprint.pylon.x += corridor.x - SPAN + 1;
-  blueprint.pylon.y += corridor.y - SPAN + 1;
-  blueprint.battery.x += corridor.x - SPAN + 1;
-  blueprint.battery.y += corridor.y - SPAN + 1;
 
-  corridor.wall = blueprint;
+  blueprint.pylon.x += corridor.x - SPAN;
+  blueprint.pylon.y += corridor.y - SPAN;
+  blueprint.battery.x += corridor.x - SPAN;
+  blueprint.battery.y += corridor.y - SPAN;
+
+  blueprint.choke.x += corridor.x - SPAN + 0.5;
+  blueprint.choke.y += corridor.y - SPAN + 0.5;
+  blueprint.rally.x += corridor.x - SPAN + 0.5;
+  blueprint.rally.y += corridor.y - SPAN + 0.5;
+
+  corridor.wall = new Wall(blueprint.rally.x, blueprint.rally.y, SPAN, blueprint);
 }
 
 function markBlueprint(board, blueprint) {
@@ -268,97 +265,171 @@ function splitBorderLine(line) {
   };
 }
 
-function populateWallWings(blueprint, leftBorderLine, rightBorderLine) {
-  let bestDistance = Infinity;
-  let bestLeft = null;
-  let bestRight = null;
-
+function createBlueprint(grid, leftBorderLine, rightBorderLine, direction) {
   for (const left of leftBorderLine) {
     for (const right of rightBorderLine) {
-      const distance = (left.x - right.x) * (left.x - right.x) + (left.y - right.y) * (left.y - right.y);
+      const hd = Math.abs(left.x - right.x);
+      const vd = Math.abs(left.y - right.y);
 
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestLeft = left;
-        bestRight = right;
+      if (!canPlaceWings(hd, vd)) continue;
+
+      const centers = [];
+      const dx = Math.sign(right.x - left.x);
+      const dy = Math.sign(right.y - left.y);
+
+      if (hd >= vd) {
+        const lx = left.x + 4 * dx;
+        const rx = right.x - 4 * dx;
+        const lc = { x: left.x + 2 * dx, y: left.y + dy};
+        const rc = { x: right.x - 2 * dx, y: right.y - dy };
+        const le = { x: lc.x, y: lc.y - direction.y };
+        const re = { x: rc.x, y: rc.y - direction.y };
+
+        if (hd === 7) {
+          const miny = Math.max(left.y - 2, right.y - 2);
+          const maxy = Math.min(left.y + 2, right.y + 2);
+
+          for (let y = miny; y <= maxy; y++) {
+            centers.push({ x: lx, y: y, choke: lc, exit: le });
+            centers.push({ x: rx, y: y, choke: rc, exit: re });
+          }
+        } else if ((hd === 6) || (hd === 5)) {
+          centers.push({ x: lx, y: right.y - 3 * dy, choke: lc, exit: le });
+          centers.push({ x: rx, y: left.y + 3 * dy, choke: rc, exit: re });
+        }
+      }
+
+      if (vd >= hd) {
+        const ly = left.y + 4 * dy;
+        const ry = right.y - 4 * dy;
+        const lc = { x: left.x + dx, y: left.y + 2 * dy };
+        const rc = { x: right.x - dx, y: right.y - 2 * dy };
+        const le = { x: lc.x - direction.x, y: lc.y };
+        const re = { x: rc.x - direction.x, y: rc.y };
+
+        if (vd === 7) {
+          const minx = Math.max(left.x - 2, right.x - 2);
+          const maxx = Math.min(left.x + 2, right.x + 2);
+
+          for (let x = minx; x <= maxx; x++) {
+            centers.push({ x: x, y: ly, choke: lc, exit: le });
+            centers.push({ x: x, y: ry, choke: rc, exit: re });
+          }
+        } else if ((vd === 6) || (vd === 5)) {
+          centers.push({ x: left.x + 3 * dx, y: ry, choke: rc, exit: re });
+          centers.push({ x: right.x - 3 * dx, y: ly, choke: lc, exit: le });
+        }
+      }
+
+      for (const center of centers) {
+        if (!canPlaceWing(grid, center.x, center.y)) continue;
+
+        const copy = JSON.parse(JSON.stringify(grid));
+        fillGrid(copy, "#", [left, center, right], 1);
+
+        if (center.choke.x === center.exit.x) {
+          for (const line of copy) {
+            line[center.choke.x] = ".";
+          }
+        } else {
+          const line = copy[center.choke.y];
+          for (let col = 0; col < line.length; col++) {
+            line[col] = ".";
+          }
+        }
+        fillGrid(copy, "x", [center.choke]);
+        fillGrid(copy, "o", [center.exit]);
+
+        const battery = selectSupport(copy, left, center, right, direction, 6);
+        if (!battery) continue;
+
+        fillGrid(copy, "@", [battery], 1, 1, 0, 0);
+
+        const pylon = selectSupport(copy, left, center, right, direction, 6.5);
+        if (!pylon) continue;
+
+        fillGrid(copy, "O", [pylon], 1, 1, 0, 0);
+        if (TRACE)  showGrid(copy);
+
+        return {
+          left: left,
+          center: { x: center.x, y: center.y },
+          right: right,
+          pylon: pylon,
+          battery: battery,
+          choke: center.choke,
+          rally: center.exit,
+        };
       }
     }
   }
-
-  blueprint.left = bestLeft;
-  blueprint.right = bestRight;
 }
 
-function selectCenterWing(leftWing, rightWing) {
-  for (let x = leftWing.x - 2; x <= leftWing.x + 2; x++) {
-    // Check if center wing can be on top of left wing
-    if (isWallingWing(x, leftWing.y - 3, rightWing)) return { x: x, y: leftWing.y - 3 };
-
-    // Check if center wing can be on bottom of left wing
-    if (isWallingWing(x, leftWing.y + 3, rightWing)) return { x: x, y: leftWing.y + 3 };
-  }
-
-  for (let y = leftWing.y - 2; y <= leftWing.y + 2; y++) {
-    // Check if center wing can be on left of left wing
-    if (isWallingWing(leftWing.x - 3, y, rightWing)) return { x: leftWing.x - 3, y: y };
-
-    // Check if center wing can be on right of left wing
-    if (isWallingWing(leftWing.x + 3, y, rightWing)) return { x: leftWing.x + 3, y: y };
-  }
-}
-
-function isWallingWing(x, y, wing) {
-  const dh = Math.abs(x - wing.x);
-  const dv = Math.abs(y - wing.y);
-
-  return ((dh === 4) && (dv < 3)) || ((dv === 4) && (dh < 3));
-}
-
-function selectSupport(grid, blueprint, direction, range) {
+function selectSupport(grid, left, right, center, direction, range) {
   for (let row = 1; row < grid.length - 1; row++) {
     for (let col = 1; col < grid[row].length - 1; col++) {
-      if (canPlaceSupport(grid, col, row) && isGoodPlaceForSupport(col, row, blueprint, direction, range)) {
+      if (canPlaceSupport(grid, col, row) && isGoodPlaceForSupport(col, row, left, right, center, direction, range)) {
         return { x: col, y: row };
       }
     }
   }
 }
 
-function calculateDirection(a, b) {
-  return { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) };
-}
+function isGoodPlaceForSupport(x, y, left, right, center, direction, range) {
+  const squareRange = range * range;
 
-function canPlaceSupport(grid, x, y) {
-  return ((grid[y][x] === " ") && (grid[y + 1][x] === " ") && (grid[y][x + 1] === " ") && (grid[y + 1][x + 1] === " "));
-}
-
-function isGoodPlaceForSupport(x, y, blueprint, direction, range) {
-  const squareRange = (range + 0.5) * (range + 0.5);
-  const cx = x + 1;
-  const cy = y + 1;
-
-  for (const wing of [blueprint.left, blueprint.center, blueprint.right]) {
+  for (const wing of [left, center, right]) {
     // Check if distance is ok
-    const dx = wing.x + 0.5 - cx;
-    const dy = wing.y + 0.5 - cy;
+    const dx = wing.x + 0.5 - x;
+    const dy = wing.y + 0.5 - y;
 
-    if (dx * dx + dy * dy >= squareRange) return false;
+    if (dx * dx + dy * dy > squareRange) return false;
   }
 
   // Check if the support is in the proper direction
-  if ((direction.x > 0) && (blueprint.center.x < x)) return false;
-  if ((direction.x < 0) && (blueprint.center.x > x)) return false;
-  if ((direction.y > 0) && (blueprint.center.y < y)) return false;
-  if ((direction.y < 0) && (blueprint.center.y > y)) return false;
+  if ((direction.x > 0) && (center.x < x)) return false;
+  if ((direction.x < 0) && (center.x > x)) return false;
+  if ((direction.y > 0) && (center.y < y)) return false;
+  if ((direction.y < 0) && (center.y > y)) return false;
 
   return true;
 }
 
+function calculateDirection(a, b) {
+  return { x: Math.sign(b.x - a.x), y: Math.sign(b.y - a.y) };
+}
+
+function canPlaceWings(hd, vd) {
+  if ((hd === 7) && (vd <= 4)) return true;
+  if ((vd === 7) && (hd <= 4)) return true;
+  if ((hd === 6) && (vd >= 1) && (vd <= 5)) return true;
+  if ((vd === 6) && (hd >= 1) && (hd <= 5)) return true;
+  if ((hd === 5) && (vd >= 1) && (vd <= 5)) return true;
+  if ((vd === 5) && (hd >= 1) && (hd <= 5)) return true;
+  if ((hd === 4) && (vd <= 2)) return true;
+  if ((vd === 4) && (hd <= 2)) return true;
+}
+
+function canPlaceWing(grid, x, y) {
+  return (
+    (grid[y - 1][x - 1] === " ") && (grid[y - 1][x] === " ") && (grid[y - 1][x + 1] === " ") &&
+    (grid[y    ][x - 1] === " ") && (grid[y    ][x] === " ") && (grid[y    ][x + 1] === " ") &&
+    (grid[y + 1][x - 1] === " ") && (grid[y + 1][x] === " ") && (grid[y + 1][x + 1] === " ")
+  );
+}
+
+function canPlaceSupport(grid, x, y) {
+  return (
+    (grid[y - 1][x - 1] === " ") && (grid[y - 1][x] === " ") &&
+    (grid[y    ][x - 1] === " ") && (grid[y    ][x] === " ")
+  );
+}
+
 function fillGrid(grid, symbol, list, rl, rt, rr, rb) {
-  rl = rl || 0;
-  rt = rt || rl;
-  rr = rr || rl;
-  rb = rb || rt;
+  rl = (rl >= 0) ? rl : 0;
+  rt = (rt >= 0) ? rt : rl;
+  rr = (rr >= 0) ? rr : rl;
+  rb = (rb >= 0) ? rb : rt;
 
   for (const one of list) {
     for (let x = one.x - rl; x <= one.x + rr; x++) {

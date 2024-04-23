@@ -6,6 +6,7 @@ export default class Corridor extends Zone {
     super(x, y, r);
 
     this.zones = [];
+    this.wall = null;
   }
 
 }
