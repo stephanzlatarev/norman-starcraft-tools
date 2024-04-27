@@ -28,6 +28,24 @@ export default class Board {
     }
   }
 
+  sync(grid) {
+    const size = grid.size;
+
+    for (let y = this.box.top; y <= this.box.bottom; y++) {
+      for (let x = this.box.left; x < this.box.right; x++) {
+        const index = x + y * size.x;
+        const pos = 7 - index % 8;
+        const mask = 1 << pos;
+
+        const isPath = (grid.data[Math.floor(index / 8)] & mask) != 0;
+
+        if (isPath !== this.cells[y][x].isPath) {
+          this.cells[y][x].isPath = isPath;
+        }
+      }
+    }
+  }
+
   path() {
     findAreas(this, listLayers(this));
   }

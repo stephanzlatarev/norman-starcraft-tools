@@ -5,7 +5,6 @@ import Types from "./types.js";
 import Units from "./units.js";
 import Map from "./code/map.js";
 import Depot from "./code/depot.js";
-import Hub from "./code/hub.js";
 import Zone from "./code/zone.js";
 
 const config = JSON.parse(fs.readFileSync("config.json", "utf-8"));
@@ -16,9 +15,17 @@ const data = JSON.parse(fs.readFileSync(file, "utf-8"));
 Types.sync(data.types);
 Units.sync(data.units);
 
+if (config.localMap.side) {
+  const side = config.localMap.side;
+  const base = Units.buildings().values().next().value;
+
+  base.body.x = side.x;
+  base.body.y = side.y;
+}
+
 const start = Date.now();
 
-Map.sync(data.info);
+Map.create(data.info);
 
 const end = Date.now();
 
@@ -140,6 +147,6 @@ display(Map.board, ttys.stdout, function(cell) {
 });
 
 console.log();
-console.log("Map", name, "with", Depot.list().length, "depots,", Hub.list().length, "hubs and a total of", Zone.list().length, "zones");
+console.log("Map", name, "with", Depot.list().length, "depots and a total of", Zone.list().length, "zones");
 console.log("Processing time:", (end - start), "millis");
 console.log();

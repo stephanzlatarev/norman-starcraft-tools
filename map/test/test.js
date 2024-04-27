@@ -4,7 +4,6 @@ import Types from "../types.js";
 import Units from "../units.js";
 import Corridor from "../code/corridor.js";
 import Depot from "../code/depot.js";
-import Hub from "../code/hub.js";
 import Map from "../code/map.js";
 import Zone from "../code/zone.js";
 
@@ -18,7 +17,7 @@ function readMap(name) {
 
   Types.sync(data.types);
   Units.sync(data.units);
-  Map.sync(data.info);
+  Map.create(data.info);
 }
 
 function checkZones(name) {
@@ -26,21 +25,21 @@ function checkZones(name) {
   const data = JSON.parse(fs.readFileSync(file, "utf-8"));
 
   let indexDepot = 0;
-  let indexHub = 0;
+  let indexZone = 0;
   let indexCorridor = 0;
 
   for (const zone of Zone.list()) {
     if (zone instanceof Depot) {
       if (!assertEquals(serializeZone(zone), serializeZone(data.depots[indexDepot++]), "Bad depot")) return;
-    } else if (zone instanceof Hub) {
-      if (!assertEquals(serializeZone(zone), serializeZone(data.hubs[indexHub++]), "Bad hub")) return;
+    } else if (zone instanceof Zone) {
+      if (!assertEquals(serializeZone(zone), serializeZone(data.zones[indexZone++]), "Bad zone")) return;
     } else if (zone instanceof Corridor) {
       if (!assertEquals(serializeCorridor(zone), serializeCorridor(data.corridors[indexCorridor++]), "Bad corridor")) return;
     }
   }
 
   if (data.depots.length > indexDepot) console.log("Missing depot:", serializeZone(data.depots[indexDepot]));
-  if (data.hubs.length > indexHub) console.log("Missing hub:", serializeZone(data.hubs[indexHub]));
+  if (data.zones.length > indexZone) console.log("Missing zone:", serializeZone(data.zones[indexZone]));
   if (data.corridors.length > indexCorridor) console.log("Missing corridor:", serializeZone(data.corridors[indexCorridor]));
 
   console.log("Zones are OK");
@@ -49,8 +48,8 @@ function checkZones(name) {
 function checkWall(name) {
   const walls = new Set();
 
-  for (const hub of Zone.list()) {
-    for (const corridor of hub.corridors) {
+  for (const zone of Zone.list()) {
+    for (const corridor of zone.corridors) {
       if (corridor.wall) {
         walls.add(corridor.wall);
       }
@@ -75,15 +74,15 @@ function assertEquals(a, b, message) {
 function showZones() {
   const data = {
     depots: [],
-    hubs: [],
+    zones: [],
     corridors: [],
   }
 
   for (const zone of Zone.list()) {
     if (zone instanceof Depot) {
       data.depots.push(JSON.parse(serializeZone(zone)));
-    } else if (zone instanceof Hub) {
-      data.hubs.push(JSON.parse(serializeZone(zone)));
+    } else if (zone instanceof Zone) {
+      data.zones.push(JSON.parse(serializeZone(zone)));
     } else if (zone instanceof Corridor) {
       data.corridors.push(JSON.parse(serializeCorridor(zone)));
     }
@@ -102,7 +101,7 @@ function serializeCorridor(zone) {
 
 // TODO: List all json file in this folder
 const MAPS = [
-  "Equilibrium512V2AIE"
+  "SiteDelta512V2AIE"
 ];
 
 for (const map of MAPS) {

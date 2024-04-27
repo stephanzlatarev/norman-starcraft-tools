@@ -7,11 +7,10 @@ const depots = [];
 
 export default class Depot extends Zone {
 
+  isDepot = true;
+
   // The workers assigned to this depot
   workers = new Set();
-
-  // Is free when no depot building has been built at the location
-  isFree = true;
 
   // Is active when the depot building is operational
   isActive = false;
