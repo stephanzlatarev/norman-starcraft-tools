@@ -64,7 +64,7 @@ async function go() {
   console.log("Reading ladder data...");
 
   await call("POST", "/api/auth/login/", SECRETS);
-  const mapNames = getMapNames((await call("GET", "/api/maps/")).results);
+  const mapNames = getMapNames((await call("GET", "/api/maps/?limit=1000")).results);
   const competition = await call("GET", "/api/competitions/" + COMPETITION + "/");
   const bots = getBots((await call("GET", "/api/bots/?limit=1000")).results);
   const ranks = getRanks((await call("GET", "/api/competition-participations/?competition=" + COMPETITION)).results);
