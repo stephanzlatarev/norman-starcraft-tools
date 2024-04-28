@@ -49,7 +49,8 @@ class Map {
     return this.board.cells[Math.floor(y)][Math.floor(x)].zone;
   }
 
-  canPlace(zone, x, y, size) {
+  // Check if a unit of the given size can be placed in the given coordinates entirely within this zone
+  accept(x, y, size) {
     this.sync(true);
 
     x = Math.floor(x);
@@ -69,7 +70,7 @@ class Map {
       for (let col = minx; col <= maxx; col++) {
         const cell = line[col];
 
-        if ((cell.zone !== zone) || !canBuildOn(cell)) {
+        if ((cell.zone !== zone) || !cell.isPlot || !cell.isPath || cell.isObstacle) {
           return false;
         }
       }
@@ -133,10 +134,6 @@ function markResources(board) {
 
     unit.cell = board.cells[y][x];
   }
-}
-
-function canBuildOn(cell) {
-  return cell.isPlot && cell.isPath && !cell.isObstacle;
 }
 
 export default new Map();
