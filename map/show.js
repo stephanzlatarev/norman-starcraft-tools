@@ -59,7 +59,9 @@ for (const zone of Zone.list()) {
     Map.board.mark(zone.blueprint.right.x - 1.5, zone.blueprint.right.y - 1.5, 3, 3, cell => (cell.color = "200;100;50"));
     Map.board.mark(zone.blueprint.pylon.x - 1, zone.blueprint.pylon.y - 1, 2, 2, cell => (cell.color = "200;200;50"));
     Map.board.mark(zone.blueprint.battery.x - 1, zone.blueprint.battery.y - 1, 2, 2, cell => (cell.color = "250;100;50"));
-    Map.board.mark(zone.blueprint.choke.x - 0.5, zone.blueprint.choke.y - 0.5, 1, 1, cell => (cell.color = "200;200;200"));
+    Map.board.mark(Math.floor(zone.blueprint.choke.x), Math.floor(zone.blueprint.choke.y), 1, 1, cell => (cell.color = "200;50;200"));
+    Map.board.mark(Math.floor(zone.blueprint.rally.x), Math.floor(zone.blueprint.rally.y), 1, 1, cell => (cell.color = "200;200;50"));
+    Map.board.mark(Math.floor(zone.x), Math.floor(zone.y), 1, 1, cell => (cell.color = "200;200;50"));
   } else if (zone.isCorridor) {
     Map.board.mark(Math.floor(zone.x), Math.floor(zone.y), 1, 1, cell => (cell.color = "200;200;50"));
   } else {
