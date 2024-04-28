@@ -67,14 +67,14 @@ const palette = [[50, 200, 200], [200, 50, 200], [200, 200, 50], [50, 50, 200], 
 const red = [200, 50, 50];
 const none = [0, 0, 0];
 
-function assignColor(area) {
+function assignColor(zone) {
   const colors = [...palette];
 
-  area.color = none;
+  zone.color = none;
 
-  for (const join of area.joins) {
-    for (const neighbor of join.areas) {
-      if (neighbor === area) continue;
+  for (const corridor of zone.corridors) {
+    for (const neighbor of corridor.zones) {
+      if (neighbor === zone) continue;
       if (neighbor.color === none) continue;
 
       if (!neighbor.color) {
@@ -88,62 +88,68 @@ function assignColor(area) {
     }
   }
 
-  area.color = colors[0];
+  zone.color = colors[0];
 }
 
-for (const area of Map.board.areas) {
-  if (!area.color) {
-    assignColor(area);
+for (const zone of Zone.list()) {
+  if (!zone.isCorridor && !zone.color) {
+    assignColor(zone);
   }
 }
 
-for (const join of Map.board.joins) {
-  if (join.color) continue;
+for (const corridor of Zone.list()) {
+  if (!corridor.isCorridor || corridor.color) continue;
 
-  if (join.areas && (join.areas.size === 2)) {
+  if (corridor.zones && (corridor.zones.length === 2)) {
     const color = [0, 0, 0];
   
-    for (const area of join.areas) {
+    for (const zone of corridor.zones) {
       for (let i = 0; i < 3; i++) {
-        color[i] += area.color ? area.color[i] : red[i];
+        color[i] += zone.color ? zone.color[i] : red[i];
       }
     }
   
-    join.color = color.map(a => Math.floor(a / join.areas.size));
+    corridor.color = color.map(a => Math.floor(a / corridor.zones.length));
   } else {
-    console.log("ERROR: Join", join.id, "doesn't connect two areas!", (join.areas ? "Connected areas: " + join.areas.size : "No connected areas"));
+    console.log("ERROR: Corridor", corridor.x, ":", corridor.y, "doesn't connect two zones!", (corridor.areas ? "Connected zones: " + corridor.zones.length : "No connected zones"));
 
-    join.color = red;
+    corridor.color = red;
   }
 }
 
 for (const row of Map.board.cells) {
   for (const cell of row) {
-    if (cell.area && !Map.board.areas.has(cell.area)) console.log("ERROR: Cell", cell.id, "doesn't belong to a valid area!", cell.area.hasbeenmerged);
+    if (cell.area && !Map.board.areas.has(cell.area)) console.log("ERROR: Cell", cell.id, "doesn't belong to a valid area!");
     if (cell.join && !Map.board.joins.has(cell.join)) console.log("ERROR: Cell", cell.id, "doesn't belong to a valid join!");
+
+    if (cell.isOn) {
+      if (cell.isPlot) {
+        if (!cell.area || !cell.area.zone) console.log("ERROR: Cell", cell.id, "doesn't belong to a buildable zone!");
+      } else if (cell.isPath) {
+        if ((!cell.area || !cell.area.zone) && (!cell.join || !cell.join.zone)) console.log("ERROR: Cell", cell.id, "doesn't belong to a zone!");
+      } else {
+        if ((cell.area && cell.area.zone) || (cell.join && cell.join.zone)) console.log("ERROR: Cell", cell.id, "belongs to a zone although it is neither buildable nor passable!");
+      }
+    } else {
+      if ((cell.area && cell.area.zone) || (cell.join && cell.join.zone)) console.log("ERROR: Cell", cell.id, "belongs to a zone although it is not playable!");
+    }
   }
 }
 
 display(Map.board, ttys.stdout, function(cell) {
-  if (cell.join && (cell.join.center === cell)) return "0;0;0";
-  if (cell.area && (cell.area.center === cell)) return "0;0;0";
+  const zone = Map.zone(cell.x, cell.y);
 
-  if (!cell.isPath && !cell.isPlot) return "200;200;200";
-  if (cell.isObstacle) return "255;255;255";
+  if (zone) {
+    if ((Math.floor(cell.x) === Math.floor(zone.x)) && (Math.floor(cell.y) === Math.floor(zone.y))) {
+      return "0;0;0";
+    } else {
+      let color = zone.color ? zone.color : red;
 
-  if (cell.join) {
-    let color = cell.join.color ? cell.join.color : red;
-
-    return (cell.isPlot ? color : color.map(a => Math.floor(a*0.9))).join(";");
+      return (cell.isPlot ? color : color.map(a => Math.floor(a*0.9))).join(";");
+    }
   }
 
-  if (cell.area) {
-    let color = cell.area.color ? cell.area.color : red;
-
-    return (cell.isPlot ? color : color.map(a => Math.floor(a*0.9))).join(";");
-  }
-
-  return "255;0;0";
+  return "200;200;200";
 });
 
 console.log();

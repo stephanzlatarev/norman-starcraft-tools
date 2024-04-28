@@ -48,6 +48,16 @@ class Map {
     }
   }
 
+  zone(x, y) {
+    const cell = this.board.cells[Math.floor(y)][Math.floor(x)];
+
+    if (cell.join && cell.join.zone) {
+      return cell.join.zone;
+    } else if (cell.area && cell.area.zone) {
+      return cell.area.zone;
+    }
+  }
+
   canPlace(zone, x, y, size) {
     this.sync(true);
 
@@ -122,11 +132,11 @@ export function createZones(board) {
   const zones = {};
 
   for (const area of board.areas) {
-    if (area.depot) {
-      zones[area.id] = area.depot;
-    } else {
-      zones[area.id] = new Zone(area.center.x, area.center.y, area.center.margin);
+    if (!area.zone) {
+      area.zone = new Zone(area.center.x, area.center.y, area.center.margin);
     }
+
+    zones[area.id] = area.zone;
   }
 
   for (const join of board.joins) {
@@ -138,6 +148,8 @@ export function createZones(board) {
       zone.corridors.push(corridor);
       corridor.zones.push(zone);
     }
+
+    join.zone = corridor;
   }
 }
 
