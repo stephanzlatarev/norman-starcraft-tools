@@ -1,8 +1,13 @@
 import Pin from "./pin.js";
 
 const zones = [];
+const unitToZone = new Map();
 
 export default class Zone extends Pin {
+
+  buildings = new Set();
+  warriors = new Set();
+  enemies = new Set();
 
   constructor(x, y, r) {
     super({ x, y });
@@ -12,6 +17,26 @@ export default class Zone extends Pin {
     this.cells = new Set();
 
     zones.push(this);
+  }
+
+  add(unit) {
+    const previousZone = unitToZone.get();
+
+    if (unit.isEnemy) {
+      this.enemies.add(unit);
+
+      if (previousZone) previousZone.enemies.delete(unit);
+    } else if (unit.type.isWarrior) {
+      this.warriors.add(unit);
+
+      if (previousZone) previousZone.warriors.delete(unit);
+    } else if (unit.type.isBuilding) {
+      this.buildings.add(unit);
+
+      if (previousZone) previousZone.buildings.delete(unit);
+    }
+
+    unitToZone.set(unit, this);
   }
 
   replace(old) {
