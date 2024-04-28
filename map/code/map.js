@@ -1,5 +1,6 @@
 import Board from "./board.js";
 import Units from "../units.js";
+import Zone from "./zone.js";
 import { createDepots } from "./depot.js";
 import { createWalls } from "./wall.js";
 import { createZones } from "./zone.js";
@@ -50,8 +51,14 @@ class Map {
   }
 
   // Check if a unit of the given size can be placed in the given coordinates entirely within this zone
-  accept(x, y, size) {
+  accepts(zone, x, y, size) {
     this.sync(true);
+
+    zone = (zone instanceof Zone) ? zone : this.zone(x, y);
+    if (!zone) {
+      console.log("Cannot accept a unit outside map zones!");
+      return false;
+    }
 
     x = Math.floor(x);
     y = Math.floor(y);
