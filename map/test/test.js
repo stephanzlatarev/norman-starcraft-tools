@@ -2,7 +2,6 @@ import fs from "fs";
 
 import Types from "../types.js";
 import Units from "../units.js";
-import Corridor from "../code/corridor.js";
 import Depot from "../code/depot.js";
 import Map from "../code/map.js";
 import Zone from "../code/zone.js";
@@ -25,16 +24,16 @@ function checkZones(name) {
   const data = JSON.parse(fs.readFileSync(file, "utf-8"));
 
   let indexDepot = 0;
-  let indexZone = 0;
   let indexCorridor = 0;
+  let indexZone = 0;
 
   for (const zone of Zone.list()) {
     if (zone instanceof Depot) {
       if (!assertEquals(serializeZone(zone), serializeZone(data.depots[indexDepot++]), "Bad depot")) return;
-    } else if (zone instanceof Zone) {
-      if (!assertEquals(serializeZone(zone), serializeZone(data.zones[indexZone++]), "Bad zone")) return;
-    } else if (zone instanceof Corridor) {
+    } else if (zone.isCorridor) {
       if (!assertEquals(serializeCorridor(zone), serializeCorridor(data.corridors[indexCorridor++]), "Bad corridor")) return;
+    } else {
+      if (!assertEquals(serializeZone(zone), serializeZone(data.zones[indexZone++]), "Bad zone")) return;
     }
   }
 
@@ -50,8 +49,8 @@ function checkWall(name) {
 
   for (const zone of Zone.list()) {
     for (const corridor of zone.corridors) {
-      if (corridor.wall) {
-        walls.add(corridor.wall);
+      if (corridor.isWall) {
+        walls.add(corridor);
       }
     }
   }
@@ -81,10 +80,10 @@ function showZones() {
   for (const zone of Zone.list()) {
     if (zone instanceof Depot) {
       data.depots.push(JSON.parse(serializeZone(zone)));
-    } else if (zone instanceof Zone) {
-      data.zones.push(JSON.parse(serializeZone(zone)));
-    } else if (zone instanceof Corridor) {
+    } else if (zone.isCorridor) {
       data.corridors.push(JSON.parse(serializeCorridor(zone)));
+    } else {
+      data.zones.push(JSON.parse(serializeZone(zone)));
     }
   }
 
@@ -92,11 +91,11 @@ function showZones() {
 }
 
 function serializeZone(zone) {
-  return JSON.stringify({ x: zone.x, y: zone.r, r: zone.r, corridors: zone.corridors.map(one => ({ x: one.x, y: one.y, r: one.r })) }, null, 2);
+  return JSON.stringify({ x: zone.x, y: zone.y, r: zone.r, corridors: zone.corridors.map(one => ({ x: one.x, y: one.y, r: one.r })) }, null, 2);
 }
 
 function serializeCorridor(zone) {
-  return JSON.stringify({ x: zone.x, y: zone.r, r: zone.r, zones: zone.zones.map(one => ({ x: one.x, y: one.y, r: one.r })) }, null, 2);
+  return JSON.stringify({ x: zone.x, y: zone.y, r: zone.r, zones: zone.zones.map(one => ({ x: one.x, y: one.y, r: one.r })) }, null, 2);
 }
 
 // TODO: List all json file in this folder

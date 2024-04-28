@@ -1,11 +1,11 @@
-import Zone from "./zone.js";
+import { Corridor } from "./zone.js";
 
 const TRACE = false;
 const SPAN = 8;
 
 const walls = [];
 
-export default class Wall extends Zone {
+export default class Wall extends Corridor {
 
   isWall = true;
 
@@ -83,14 +83,13 @@ export function createWalls(board, base) {
   const blueprint = createBlueprint(grid, split.left, split.right, direction);
 
   if (blueprint) {
-    setBlueprintToCorridor(corridorToWall, blueprint);
-    markBlueprint(board, blueprint);
+    setBlueprintToCorridor(board, corridorToWall, blueprint);
   } else {
     console.log("WARNING! Unable to create wall blueprint!");
   }
 }
 
-function setBlueprintToCorridor(corridor, blueprint) {
+function setBlueprintToCorridor(board, corridor, blueprint) {
   blueprint.left.x += corridor.x - SPAN + 0.5;
   blueprint.left.y += corridor.y - SPAN + 0.5;
   blueprint.center.x += corridor.x - SPAN + 0.5;
@@ -108,17 +107,34 @@ function setBlueprintToCorridor(corridor, blueprint) {
   blueprint.rally.x += corridor.x - SPAN + 0.5;
   blueprint.rally.y += corridor.y - SPAN + 0.5;
 
-  corridor.x = blueprint.rally.x;
-  corridor.y = blueprint.rally.y;
-  corridor.wall = new Wall(blueprint.rally.x, blueprint.rally.y, SPAN, blueprint);
+  const wall = new Wall(blueprint.rally.x, blueprint.rally.y, SPAN, blueprint);
+
+  wall.replace(corridor);
+
+  // Set the wall as the zone to all cells near the wall
+  for (const one of [blueprint.left, blueprint.center, blueprint.right, blueprint.pylon, blueprint.battery]) {
+    assignCellsToWall(board, wall, one);
+  }
 }
 
-function markBlueprint(board, blueprint) {
-  board.mark(blueprint.left.x - 1.5, blueprint.left.y - 1.5, 3, 3, cell => (cell.isMarked = true));
-  board.mark(blueprint.center.x - 1.5, blueprint.center.y - 1.5, 3, 3, cell => (cell.isMarked = true));
-  board.mark(blueprint.right.x - 1.5, blueprint.right.y - 1.5, 3, 3, cell => (cell.isMarked = true));
-  board.mark(blueprint.pylon.x - 1, blueprint.pylon.y - 1, 2, 2, cell => (cell.isMarked = true));
-  board.mark(blueprint.battery.x - 1, blueprint.battery.y - 1, 2, 2, cell => (cell.isMarked = true));
+function assignCellsToWall(board, wall, wing) {
+  const minx = Math.floor(wing.x) - 3;
+  const maxx = Math.ceil(wing.x) + 3;
+  const miny = Math.floor(wing.y) - 3;
+  const maxy = Math.ceil(wing.y) + 3;
+
+  for (let y = miny; y <= maxy; y++) {
+    for (let x = minx; x <= maxx; x++) {
+      const cell = board.cells[y][x];
+
+      if (cell.zone) {
+        cell.zone.cells.delete(cell);
+
+        wall.cells.add(cell);
+        cell.zone = wall;
+      }
+    }
+  }
 }
 
 function createGrid(board, corridor) {

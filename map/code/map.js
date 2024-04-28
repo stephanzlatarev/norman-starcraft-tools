@@ -1,9 +1,8 @@
 import Board from "./board.js";
-import Corridor from "./corridor.js";
-import Zone from "./zone.js";
 import Units from "../units.js";
 import { createDepots } from "./depot.js";
 import { createWalls } from "./wall.js";
+import { createZones } from "./zone.js";
 
 class Map {
 
@@ -33,8 +32,6 @@ class Map {
     createDepots(this.board, Units.resources().values(), base);
     createZones(this.board);
     createWalls(this.board, base);
-
-    markZones(this.board);
   }
 
   sync(gameInfoOrEnforce, gameLoop) {
@@ -49,13 +46,7 @@ class Map {
   }
 
   zone(x, y) {
-    const cell = this.board.cells[Math.floor(y)][Math.floor(x)];
-
-    if (cell.join && cell.join.zone) {
-      return cell.join.zone;
-    } else if (cell.area && cell.area.zone) {
-      return cell.area.zone;
-    }
+    return this.board.cells[Math.floor(y)][Math.floor(x)].zone;
   }
 
   canPlace(zone, x, y, size) {
@@ -65,9 +56,6 @@ class Map {
     y = Math.floor(y);
 
     const cells = this.board.cells;
-
-    if (cells[y][x].area !== cells[Math.floor(zone.y)][Math.floor(zone.x)].area) return false;
-
     const head = Math.floor(size / 2);
     const tail = Math.floor((size - 1) / 2);
     const minx = x - head;
@@ -79,7 +67,9 @@ class Map {
       const line = cells[row];
 
       for (let col = minx; col <= maxx; col++) {
-        if (!canBuildOn(line[col])) {
+        const cell = line[col];
+
+        if ((cell.zone !== zone) || !canBuildOn(cell)) {
           return false;
         }
       }
@@ -128,31 +118,6 @@ function clearInitialPathing(board) {
   }
 }
 
-export function createZones(board) {
-  const zones = {};
-
-  for (const area of board.areas) {
-    if (!area.zone) {
-      area.zone = new Zone(area.center.x, area.center.y, area.center.margin);
-    }
-
-    zones[area.id] = area.zone;
-  }
-
-  for (const join of board.joins) {
-    const corridor = new Corridor(join.center.x, join.center.y, join.center.margin);
-
-    for (const area of join.areas) {
-      const zone = zones[area.id];
-
-      zone.corridors.push(corridor);
-      corridor.zones.push(zone);
-    }
-
-    join.zone = corridor;
-  }
-}
-
 function markResources(board) {
   for (const unit of Units.resources().values()) {
     const x = Math.floor(unit.body.x);
@@ -167,20 +132,6 @@ function markResources(board) {
     }
 
     unit.cell = board.cells[y][x];
-  }
-}
-
-function markZones(board) {
-  for (const zone of Zone.list()) {
-    if (zone.isDepot) {
-      board.mark(zone.x - 2.5, zone.y - 2.5, 5, 5, cell => (cell.isMarked = true));
-      board.mark(zone.harvestRally.x - 0.5, zone.harvestRally.y - 0.5, 1, 1, cell => (cell.isMarked = true));
-      board.mark(zone.exitRally.x - 0.5, zone.exitRally.y - 0.5, 1, 1, cell => (cell.isMarked = true));
-    } else if (zone.isCorridor || zone.isWall) {
-      board.mark(Math.floor(zone.x), Math.floor(zone.y), 1, 1, cell => (cell.isMarked = true));
-    } else {
-      board.mark(Math.floor(zone.x - 1), Math.floor(zone.y - 1), 3, 3, cell => (cell.isMarked = true));
-    }
   }
 }
 

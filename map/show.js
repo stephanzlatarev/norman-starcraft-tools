@@ -48,15 +48,34 @@ function display(board, out, color) {
   }
 }
 
+for (const zone of Zone.list()) {
+  if (zone.isDepot) {
+    Map.board.mark(zone.x - 2.5, zone.y - 2.5, 5, 5, cell => (cell.color = "200;200;50"));
+    Map.board.mark(zone.harvestRally.x - 0.5, zone.harvestRally.y - 0.5, 1, 1, cell => (cell.color = "200;200;200"));
+    Map.board.mark(zone.exitRally.x - 0.5, zone.exitRally.y - 0.5, 1, 1, cell => (cell.color = "200;200;50"));
+  } else if (zone.isWall) {
+    Map.board.mark(zone.blueprint.left.x - 1.5, zone.blueprint.left.y - 1.5, 3, 3, cell => (cell.color = "200;100;50"));
+    Map.board.mark(zone.blueprint.center.x - 1.5, zone.blueprint.center.y - 1.5, 3, 3, cell => (cell.color = "200;100;50"));
+    Map.board.mark(zone.blueprint.right.x - 1.5, zone.blueprint.right.y - 1.5, 3, 3, cell => (cell.color = "200;100;50"));
+    Map.board.mark(zone.blueprint.pylon.x - 1, zone.blueprint.pylon.y - 1, 2, 2, cell => (cell.color = "200;200;50"));
+    Map.board.mark(zone.blueprint.battery.x - 1, zone.blueprint.battery.y - 1, 2, 2, cell => (cell.color = "250;100;50"));
+    Map.board.mark(zone.blueprint.choke.x - 0.5, zone.blueprint.choke.y - 0.5, 1, 1, cell => (cell.color = "200;200;200"));
+  } else if (zone.isCorridor) {
+    Map.board.mark(Math.floor(zone.x), Math.floor(zone.y), 1, 1, cell => (cell.color = "200;200;50"));
+  } else {
+    Map.board.mark(Math.floor(zone.x - 1), Math.floor(zone.y - 1), 3, 3, cell => (cell.color = "200;200;0"));
+  }
+}
+
 display(Map.board, ttys.stdout, function color(cell) {
-  if (!cell.isMarked && !cell.isPath && !cell.isPlot) return "200;200;200";
-  if (!cell.isMarked && cell.isObstacle) return "255;255;255";
+  if (cell.color) return cell.color;
+  if (!cell.isPath && !cell.isPlot) return "200;200;200";
+  if (cell.isObstacle) return "255;255;255";
 
   let r = 50;
   let g = 50;
   let b = 50;
 
-  if (cell.isMarked) r = 200;
   if (cell.margin) g = Math.round(50 + Math.min(cell.margin * 10, 200));
   if (!cell.isPlot) b = 200;
 
@@ -111,7 +130,7 @@ for (const corridor of Zone.list()) {
   
     corridor.color = color.map(a => Math.floor(a / corridor.zones.length));
   } else {
-    console.log("ERROR: Corridor", corridor.x, ":", corridor.y, "doesn't connect two zones!", (corridor.areas ? "Connected zones: " + corridor.zones.length : "No connected zones"));
+    console.log("ERROR: Corridor", corridor.x, ":", corridor.y, "doesn't connect two zones!", (corridor.zones ? "Connected zones: " + corridor.zones.length : "No connected zones"));
 
     corridor.color = red;
   }
@@ -119,19 +138,14 @@ for (const corridor of Zone.list()) {
 
 for (const row of Map.board.cells) {
   for (const cell of row) {
-    if (cell.area && !Map.board.areas.has(cell.area)) console.log("ERROR: Cell", cell.id, "doesn't belong to a valid area!");
-    if (cell.join && !Map.board.joins.has(cell.join)) console.log("ERROR: Cell", cell.id, "doesn't belong to a valid join!");
-
     if (cell.isOn) {
-      if (cell.isPlot) {
-        if (!cell.area || !cell.area.zone) console.log("ERROR: Cell", cell.id, "doesn't belong to a buildable zone!");
-      } else if (cell.isPath) {
-        if ((!cell.area || !cell.area.zone) && (!cell.join || !cell.join.zone)) console.log("ERROR: Cell", cell.id, "doesn't belong to a zone!");
+      if (cell.isPlot || cell.isPath) {
+        if (!cell.zone) console.log("ERROR: Cell", cell.id, "doesn't belong to a zone!");
       } else {
-        if ((cell.area && cell.area.zone) || (cell.join && cell.join.zone)) console.log("ERROR: Cell", cell.id, "belongs to a zone although it is neither buildable nor passable!");
+        if (cell.zone) console.log("ERROR: Cell", cell.id, "belongs to a zone although it is neither buildable nor passable!");
       }
     } else {
-      if ((cell.area && cell.area.zone) || (cell.join && cell.join.zone)) console.log("ERROR: Cell", cell.id, "belongs to a zone although it is not playable!");
+      if (cell.zone) console.log("ERROR: Cell", cell.id, "belongs to a zone although it is not playable!");
     }
   }
 }
