@@ -149,11 +149,14 @@ for (const corridor of Zone.list()) {
   }
 }
 
+let countPassableCellsOutsideZones = 0;
 for (const row of Map.board.cells) {
   for (const cell of row) {
     if (cell.isOn) {
-      if (cell.isPlot || cell.isPath) {
-        if (!cell.zone) console.log("ERROR: Cell", cell.id, "doesn't belong to a zone!");
+      if (cell.isPlot) {
+        if (!cell.zone) console.log("ERROR: Buildable cell", cell.id, "doesn't belong to a zone!");
+      } else if (cell.isPath) {
+        if (!cell.zone) countPassableCellsOutsideZones++;
       } else {
         if (cell.zone) console.log("ERROR: Cell", cell.id, "belongs to a zone although it is neither buildable nor passable!");
       }
@@ -162,6 +165,7 @@ for (const row of Map.board.cells) {
     }
   }
 }
+if (countPassableCellsOutsideZones) console.log(countPassableCellsOutsideZones, "passable cells don't belong to a zone.");
 
 display(Map.board, ttys.stdout, function(cell) {
   const zone = Map.zone(cell.x, cell.y);
