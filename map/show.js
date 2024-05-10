@@ -38,14 +38,27 @@ function display(board, out, color) {
       const cell = cells[row][col];
 
       if (cell.isOn) {
-        out.write("\x1b[48;2;" + color(cell) + "m");
-        out.write(" ");
+        const text = getCellText(cell);
+        out.write("\x1b[48;2;" + ((text === " ") ? color(cell) : "0;0;0") + "m");
+        out.write(text);
       }
     }
 
     out.write("\x1b[0m");
     out.write("\r\n");
   }
+}
+
+function getCellText(cell) {
+  const zone = cell.zone;
+
+  if (zone && !zone.isCorridor && (Math.floor(cell.y) === Math.floor(zone.y))) {
+    const dx = Math.floor(cell.x) - Math.floor(zone.x);
+    if (dx === 0) return zone.name[0];
+    if (dx === 1) return zone.name[1];
+  }
+
+  return " ";
 }
 
 for (const zone of Zone.list()) {
@@ -62,10 +75,8 @@ for (const zone of Zone.list()) {
     Map.board.mark(Math.floor(zone.blueprint.choke.x), Math.floor(zone.blueprint.choke.y), 1, 1, cell => (cell.color = "200;50;200"));
     Map.board.mark(Math.floor(zone.blueprint.rally.x), Math.floor(zone.blueprint.rally.y), 1, 1, cell => (cell.color = "200;200;50"));
     Map.board.mark(Math.floor(zone.x), Math.floor(zone.y), 1, 1, cell => (cell.color = "200;200;50"));
-  } else if (zone.isCorridor) {
-    Map.board.mark(Math.floor(zone.x), Math.floor(zone.y), 1, 1, cell => (cell.color = "200;200;50"));
   } else {
-    Map.board.mark(Math.floor(zone.x - 1), Math.floor(zone.y - 1), 3, 3, cell => (cell.color = "200;200;0"));
+    Map.board.mark(Math.floor(zone.x), Math.floor(zone.y), 1, 1, cell => (cell.color = "200;200;50"));
   }
 }
 
