@@ -19,8 +19,12 @@ if (config.localMap.side) {
   const side = config.localMap.side;
   const base = Units.buildings().values().next().value;
 
-  base.body.x = side.x;
-  base.body.y = side.y;
+  if ((base.body.x !== side.x) || (base.body.y !== side.y)) {
+    Units.buildings().set("shadow", { type: { isBuilding: true }, body: { x: base.body.x, y: base.body.y } });
+
+    base.body.x = side.x;
+    base.body.y = side.y;
+  }
 }
 
 const start = Date.now();
@@ -93,6 +97,34 @@ display(Map.board, ttys.stdout, function color(cell) {
   if (!cell.isPlot) b = 200;
 
   return r + ";" + g + ";" + b;
+});
+
+const tiers = Map.tiers.length;
+
+display(Map.board, ttys.stdout, function(cell) {
+  const zone = Map.zone(cell.x, cell.y);
+
+  if (zone && zone.tier) {
+    const tier = zone.tier.level;
+    const shade = 200 - Math.floor(tier * 100 / tiers);
+    const tint = (tier % 6);
+
+    if (tint === 1) {
+      return shade + ";0;0";
+    } else if (tint === 2) {
+      return shade + ";" + shade + ";0";
+    } else if (tint === 3) {
+      return "0;" + shade + ";0";
+    } else if (tint === 4) {
+      return "0;" + shade + ";" + shade;
+    } else if (tint === 5) {
+      return "0;0;" + shade;
+    } else {
+      return shade + ";0;" + shade;
+    }
+  }
+
+  return "200;200;200";
 });
 
 const palette = [[50, 200, 200], [200, 50, 200], [200, 200, 50], [50, 50, 200], [50, 200, 50]];
@@ -183,7 +215,11 @@ display(Map.board, ttys.stdout, function(cell) {
   return "200;200;200";
 });
 
+const depotCount = Depot.list().length;
+const zoneCount = Zone.list().filter(zone => (!zone.isDepot && !zone.isCorridor)).length;
+const corridorCount = Zone.list().filter(zone => !!zone.isCorridor).length;
+
 console.log();
-console.log("Map", name, "with", Depot.list().length, "depots and a total of", Zone.list().length, "zones");
+console.log("Map", name, "with", depotCount, "depots,", zoneCount, "zones, and", corridorCount, "corridors");
 console.log("Processing time:", (end - start), "millis");
 console.log();
