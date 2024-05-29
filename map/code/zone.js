@@ -75,6 +75,8 @@ export default class Zone extends Pin {
         }
       }
 
+      this.name = old.name;
+      this.tier = old.tier;
       this.zones = [...old.zones];
 
       for (const cell of old.cells) {

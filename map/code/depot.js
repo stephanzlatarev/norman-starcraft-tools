@@ -29,7 +29,7 @@ export default class Depot extends Zone {
     }
 
     this.minerals = resources.filter(resource => resource.type.isMinerals).sort((a, b) => (a.d - b.d));
-    this.vespene = resources.filter(resource => resource.type.isMinerals).sort((a, b) => (a.d - b.d));
+    this.vespene = resources.filter(resource => resource.type.isVespene).sort((a, b) => (a.d - b.d));
 
     this.harvestRally = findRally(cell, this.minerals);
     this.exitRally = { x: this.x + this.x - this.harvestRally.x, y: this.y + this.y - this.harvestRally.y };
