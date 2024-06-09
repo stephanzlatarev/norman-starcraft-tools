@@ -3,8 +3,9 @@ import ttys from "ttys";
 
 import Types from "./types.js";
 import Units from "./units.js";
-import Map from "./code/map.js";
 import Depot from "./code/depot.js";
+import Map from "./code/map.js";
+import Tiers from "./code/tier.js";
 import Zone from "./code/zone.js";
 
 const config = JSON.parse(fs.readFileSync("config.json", "utf-8"));
@@ -99,14 +100,12 @@ display(Map.board, ttys.stdout, function color(cell) {
   return r + ";" + g + ";" + b;
 });
 
-const tiers = Map.tiers.length;
-
 display(Map.board, ttys.stdout, function(cell) {
   const zone = Map.zone(cell.x, cell.y);
 
   if (zone && zone.tier) {
     const tier = zone.tier.level;
-    const shade = 200 - Math.floor(tier * 100 / tiers);
+    const shade = 200 - Math.floor(tier * 100 / Tiers.length);
     const tint = (tier % 6);
 
     if (tint === 1) {
