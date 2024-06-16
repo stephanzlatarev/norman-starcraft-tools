@@ -39,6 +39,8 @@ function display(board, out, color) {
   const cells = board.cells;
 
   for (let row = top; row <= bottom; row++) {
+    out.write(row + "\t");
+
     for (let col = left; col <= right; col++) {
       const cell = cells[row][col];
 
@@ -217,8 +219,9 @@ display(Map.board, ttys.stdout, function(cell) {
 const depotCount = Depot.list().length;
 const zoneCount = Zone.list().filter(zone => (!zone.isDepot && !zone.isCorridor)).length;
 const corridorCount = Zone.list().filter(zone => !!zone.isCorridor).length;
+const tierCount = Tiers.length;
 
 console.log();
-console.log("Map", name, "with", depotCount, "depots,", zoneCount, "zones, and", corridorCount, "corridors");
+console.log("Map", name, "with", depotCount, "depots,", zoneCount, "zones, and", corridorCount, "corridors in", tierCount, "tiers");
 console.log("Processing time:", (end - start), "millis");
 console.log();
