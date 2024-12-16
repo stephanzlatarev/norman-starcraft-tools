@@ -1,17 +1,24 @@
 import Pin from "./pin.js";
 
+const FIRE_RANGE = 15;
+
 const zones = [];
 const knownThreats = new Map();
 
 export default class Zone extends Pin {
 
+  hops = new Map();
+  neighbors = new Set();
+  range = { zones: new Set(), fire: new Set(), front: new Set() };
+
+  workers = new Set();
   buildings = new Set();
   warriors = new Set();
   enemies = new Set();
   threats = new Set();
 
-  constructor(x, y, r) {
-    super({ x, y });
+  constructor(cell, r) {
+    super(cell);
 
     this.r = (r > 0) ? r : 1;
     this.corridors = [];
@@ -20,10 +27,29 @@ export default class Zone extends Pin {
     zones.push(this);
   }
 
+  getHopsTo(zone) {
+    if (zone === this) return { distance: 0 };
+
+    let hops = this.hops.get(zone);
+
+    if (!hops) {
+      calculateAllHopsFromZone(this);
+
+      hops = this.hops.get(zone);
+    }
+
+    if (!hops) console.log("Ooops! No hops from", this.name, "to", zone.name);
+
+    return hops;
+  }
+
   addUnit(unit) {
     if (this === unit.zone) return;
+    if (unit.isEnemy && !unit.isVisible) return;
 
-    if (unit.isEnemy) {
+    if (unit.isHallucination) {
+      // Ignore the unit
+    } else if (unit.isEnemy) {
       const previous = knownThreats.get(unit.tag);
 
       if (previous && previous.zone) {
@@ -40,7 +66,11 @@ export default class Zone extends Pin {
       this.threats.add(unit);
 
       knownThreats.set(unit.tag, unit);
-    } else if (unit.type.isWarrior && !unit.type.isWorker) {
+    } else if (unit.type.isWorker) {
+      if (unit.zone) unit.zone.workers.delete(unit);
+
+      this.workers.add(unit);
+    } else if (unit.type.isWarrior) {
       if (unit.zone) unit.zone.warriors.delete(unit);
 
       this.warriors.add(unit);
@@ -56,8 +86,12 @@ export default class Zone extends Pin {
   removeUnit(unit) {
     if (unit.zone !== this) return;
 
-    if (unit.isEnemy) {
+    if (unit.isHallucination) {
+      // Ignore the unit
+    } else if (unit.isEnemy) {
       this.enemies.delete(unit);
+    } else if (unit.type.isWorker) {
+      this.workers.delete(unit);
     } else if (unit.type.isWarrior && !unit.type.isWorker) {
       this.warriors.delete(unit);
     } else if (unit.type.isBuilding) {
@@ -77,11 +111,30 @@ export default class Zone extends Pin {
 
       this.name = old.name;
       this.tier = old.tier;
+      this.neighbors = new Set(old.neighbors);
       this.zones = [...old.zones];
+      this.distance = old.distance;
 
       for (const cell of old.cells) {
         this.cells.add(cell);
         cell.zone = this;
+      }
+
+      for (const zone of Zone.list()) {
+        if (zone.hops.has(old)) zone.hops.set(this, zone.hops.get(old));
+        replaceInSet(zone.neighbors, old, this);
+        replaceInSet(zone.range.zones, old, this);
+        replaceInSet(zone.range.fire, old, this);
+        replaceInSet(zone.range.front, old, this);
+      }
+
+      const updatedTiers = new Set();
+      for (const zone of this.zones) {
+        if (!updatedTiers.has(zone.tier)) {
+          replaceInSet(zone.tier.fore, old, this);
+          replaceInSet(zone.tier.zones, old, this);
+          updatedTiers.add(zone.tier);
+        }
       }
 
       old.remove();
@@ -108,9 +161,10 @@ export default class Zone extends Pin {
 export class Corridor extends Zone {
 
   isCorridor = true;
+  distance = 0;
 
-  constructor(x, y, r) {
-    super(x, y, r);
+  constructor(cell, r) {
+    super(cell, r);
 
     this.zones = [];
   }
@@ -122,7 +176,7 @@ export function createZones(board) {
   const zones = [];
 
   for (const area of board.areas) {
-    const zone = area.zone ? area.zone : new Zone(area.x, area.y, area.level);
+    const zone = area.zone ? area.zone : new Zone(area.cell, area.level);
 
     for (const cell of area.cells) {
       zone.cells.add(cell);
@@ -134,7 +188,7 @@ export function createZones(board) {
   }
 
   for (const join of board.joins) {
-    const corridor = new Corridor(join.x, join.y, join.margin);
+    const corridor = new Corridor(join.cell, join.level);
 
     for (const cell of join.cells) {
       corridor.cells.add(cell);
@@ -147,9 +201,19 @@ export function createZones(board) {
       zone.corridors.push(corridor);
       corridor.zones.push(zone);
     }
+
+    corridor.distance = calculateDistance(...corridor.zones);
   }
 
+  addRemainingCellsToZones(board, zones);
+
   labelZones(zones);
+  identifyNeighbors();
+  identifyRanges();
+}
+
+function calculateDistance(a, b) {
+  return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
 
 const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
@@ -201,5 +265,126 @@ function labelZones(zones) {
         corridor.name = LETTERS[col] + row + "-";
       }
     }
+  }
+}
+
+function identifyNeighbors() {
+  for (const zone of zones) {
+    if (zone.corridors.length) {
+      for (const corridor of zone.corridors) {
+        zone.neighbors.add(corridor);
+
+        for (const neighbor of corridor.zones) {
+          if (neighbor !== zone) zone.neighbors.add(neighbor);
+        }
+      }
+    } else if (zone.zones) {
+      for (const neighbor of zone.zones) {
+        zone.neighbors.add(neighbor);
+      }
+    }
+  }
+}
+
+function identifyRanges() {
+  for (const zone of zones) {
+    if (zone.cells.size) {
+      identifyRangesInRay(zone, zone, (zone.r + FIRE_RANGE) * (zone.r + FIRE_RANGE), new Set());
+    }
+  }
+}
+
+function identifyRangesInRay(zone, ray, squareFireRange, skip) {
+  const squareDistance = (zone.x - ray.x) * (zone.x - ray.x) + (zone.y - ray.y) * (zone.y - ray.y);
+
+  zone.range.zones.add(ray);
+  skip.add(ray);
+
+  if (squareDistance < squareFireRange) {
+    zone.range.fire.add(ray);
+
+    for (const next of ray.neighbors) {
+      if (next.cells.size && !skip.has(next)) {
+        identifyRangesInRay(zone, next, squareFireRange, skip);
+      }
+    }
+  } else {
+    zone.range.front.add(ray);
+  }
+}
+
+function calculateAllHopsFromZone(zone) {
+  const directions = new Map();
+  let wave = new Set();
+  let traversed = new Set([zone]);
+  let distance = 1;
+
+  for (const corridor of zone.corridors) {
+    for (const neighbor of corridor.zones) {
+      if (neighbor !== zone) {
+        wave.add(neighbor);
+        traversed.add(neighbor);
+        directions.set(neighbor, corridor);
+      }
+    }
+  }
+
+  while (wave.size) {
+    const next = new Set();
+
+    for (const one of wave) {
+      const direction = directions.get(one);
+
+      zone.hops.set(one, { direction: direction, distance: distance });
+
+      for (const neighbor of one.neighbors) {
+        if (!neighbor.isCorridor && !traversed.has(neighbor)) {
+          directions.set(neighbor, direction);
+          next.add(neighbor);
+          traversed.add(neighbor);
+        }
+      }
+    }
+
+    wave = next;
+    distance++;
+  }
+}
+
+function replaceInSet(set, previous, current) {
+  if (set.has(previous)) {
+    set.delete(previous);
+    set.add(current);
+  }
+}
+
+function addRemainingCellsToZones(board, zones) {
+  const expandingZones = [...zones].filter(zone => (zone.cells.size > 0));
+
+  for (const row of board.cells) {
+    for (const cell of row) {
+      if (!cell.zone) {
+        addCellToClosestZone(cell, expandingZones);
+      }
+    }
+  }
+}
+
+function addCellToClosestZone(cell, zones) {
+  let closestZone;
+  let closestDistance = Infinity;
+
+  for (const zone of zones) {
+    const distance = Math.abs(zone.x - cell.x) + Math.abs(zone.y - cell.y);
+
+    if (distance < closestDistance) {
+      closestZone = zone;
+      closestDistance = distance;
+    }
+  }
+
+  if (closestZone) {
+    cell.zone = closestZone;
+    closestZone.cells.add(cell);
   }
 }

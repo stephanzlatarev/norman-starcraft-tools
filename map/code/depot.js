@@ -1,4 +1,5 @@
 import Zone from "./zone.js";
+import GameMap from "./map.js";
 
 const depots = [];
 
@@ -6,49 +7,78 @@ export default class Depot extends Zone {
 
   isDepot = true;
 
-  // The workers assigned to this depot
-  workers = new Set();
+  // The depot building of this zone
+  depot = null;
 
-  // Is active when the depot building is operational
-  isActive = false;
-
-  // The capacity for harvest workers
-  capacity = 0;
-
-  // Is staturated when enough workers are assigned to this depot
-  isSaturated = false;
+  minerals = new Set();
+  vespene = new Set();
+  extractors = new Set();
 
   constructor(cell, resources) {
-    super(cell.x + 0.5, cell.y + 0.5, cell.margin);
+    super(cell, cell.margin);
+
+    this.x = cell.x + 0.5;
+    this.y = cell.y + 0.5;
 
     for (const resource of resources) {
       const dx = resource.body.x - cell.x;
       const dy = resource.body.y - cell.y;
 
       resource.d = Math.sqrt(dx * dx + dy * dy);
+
+      if (resource.type.isMinerals) {
+        this.minerals.add(resource);
+      } else if (resource.type.isVespene) {
+        this.vespene.add(resource);
+      }
+
+      const rcell = GameMap.cell(resource.body.x, resource.body.y);
+      if (rcell.area !== cell.area) {
+        rcell.area.cells.delete(rcell);
+        cell.area.cells.add(rcell);
+      }
     }
 
-    this.minerals = resources.filter(resource => resource.type.isMinerals).sort((a, b) => (a.d - b.d));
-    this.vespene = resources.filter(resource => resource.type.isVespene).sort((a, b) => (a.d - b.d));
-
     this.harvestRally = findRally(cell, this.minerals);
-    this.exitRally = { x: this.x + this.x - this.harvestRally.x, y: this.y + this.y - this.harvestRally.y };
+    this.exitRally = GameMap.cell(this.x + this.x - this.harvestRally.x, this.y + this.y - this.harvestRally.y);
 
     depots.push(this);
   }
 
-  assignWorker(worker) {
-    if (worker.depot) {
-      worker.depot.releaseWorker(worker);
-    }
+  addUnit(unit) {
+    super.addUnit(unit);
 
-    this.workers.add(worker);
-    worker.depot = this;
+    if (unit.isOwn) {
+      if (unit.type.isDepot && (unit.body.x === this.x) && (unit.body.y === this.y)) {
+        this.depot = unit;
+      } else if (unit.type.isExtractor) {
+        if (unit.isActive) {
+          this.extractors.add(unit);
+        } else {
+          this.extractors.delete(unit);
+        }
+      }
+    } else if (unit.isEnemy) {
+      // Ignore it.
+    } else if (unit.type.isMinerals) {
+      this.minerals.add(unit);
+    } else if (unit.type.isVespene) {
+      this.vespene.add(unit);
+    }
   }
 
-  releaseWorker(worker) {
-    this.workers.delete(worker);
-    worker.depot = null;
+  removeUnit(unit) {
+    super.removeUnit(unit);
+
+    if (unit.type.isDepot && (unit.body.x === this.x) && (unit.body.y === this.y)) {
+      this.depot = null;
+    } else if (unit.type.isMinerals) {
+      this.minerals.delete(unit);
+    } else if (unit.type.isVespene) {
+      this.vespene.delete(unit);
+    } else if (unit.type.isExtractor) {
+      this.extractors.delete(unit);
+    }
   }
 
   remove() {
@@ -78,10 +108,10 @@ function findRally(cell, resources) {
     sumy += one.body.y;
   }
 
-  const dx = Math.sign(Math.floor(sumx / resources.length) - cell.x);
-  const dy = Math.sign(Math.floor(sumy / resources.length) - cell.y);
+  const dx = Math.sign(Math.floor(sumx / resources.size) - cell.x);
+  const dy = Math.sign(Math.floor(sumy / resources.size) - cell.y);
 
-  return { x: cell.x + dx * 3 + 0.5, y: cell.y + dy * 3 + 0.5 };
+  return GameMap.cell(cell.x + dx * 3 + 0.5, cell.y + dy * 3 + 0.5);
 }
 
 export function createDepots(board, resources, base) {
@@ -111,8 +141,7 @@ export function createDepots(board, resources, base) {
       }
 
       if ((base.body.x === depot.x) && (base.body.y === depot.y)) {
-        base.depot = depot;
-        depot.isActive = true;
+        depot.depot = base;
       }
 
       for (let x = cell.x - 5; x <= cell.x + 5; x++) {

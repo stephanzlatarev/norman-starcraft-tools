@@ -7,6 +7,7 @@ import Depot from "./code/depot.js";
 import Map from "./code/map.js";
 import Tiers from "./code/tier.js";
 import Zone from "./code/zone.js";
+import { createMap } from "./code/sync.js";
 
 const config = JSON.parse(fs.readFileSync("config.json", "utf-8"));
 const name = config.localMap.mapPath.split(".")[0];
@@ -30,7 +31,7 @@ if (config.localMap.side) {
 
 const start = Date.now();
 
-Map.create(data.info);
+createMap(data.info);
 
 const end = Date.now();
 
@@ -71,8 +72,8 @@ function getCellText(cell) {
 for (const zone of Zone.list()) {
   if (zone.isDepot) {
     Map.board.mark(zone.x - 2.5, zone.y - 2.5, 5, 5, cell => (cell.color = "200;200;50"));
-    Map.board.mark(zone.harvestRally.x - 0.5, zone.harvestRally.y - 0.5, 1, 1, cell => (cell.color = "200;200;200"));
-    Map.board.mark(zone.exitRally.x - 0.5, zone.exitRally.y - 0.5, 1, 1, cell => (cell.color = "200;200;50"));
+    Map.board.mark(zone.harvestRally.x, zone.harvestRally.y, 1, 1, cell => (cell.color = "200;200;200"));
+    Map.board.mark(zone.exitRally.x, zone.exitRally.y, 1, 1, cell => (cell.color = "200;200;50"));
   } else if (zone.isWall) {
     Map.board.mark(zone.blueprint.left.x - 1.5, zone.blueprint.left.y - 1.5, 3, 3, cell => (cell.color = "200;100;50"));
     Map.board.mark(zone.blueprint.center.x - 1.5, zone.blueprint.center.y - 1.5, 3, 3, cell => (cell.color = "200;100;50"));
@@ -182,23 +183,15 @@ for (const corridor of Zone.list()) {
   }
 }
 
-let countPassableCellsOutsideZones = 0;
+const cellsOutsideZones = [];
 for (const row of Map.board.cells) {
   for (const cell of row) {
-    if (cell.isOn) {
-      if (cell.isPlot) {
-        if (!cell.zone) console.log("ERROR: Buildable cell", cell.id, "doesn't belong to a zone!");
-      } else if (cell.isPath) {
-        if (!cell.zone) countPassableCellsOutsideZones++;
-      } else {
-        if (cell.zone) console.log("ERROR: Cell", cell.id, "belongs to a zone although it is neither buildable nor passable!");
-      }
-    } else {
-      if (cell.zone) console.log("ERROR: Cell", cell.id, "belongs to a zone although it is not playable!");
+    if (!cell.zone) {
+      cellsOutsideZones.push(cell.id);
     }
   }
 }
-if (countPassableCellsOutsideZones) console.log(countPassableCellsOutsideZones, "passable cells don't belong to a zone.");
+if (cellsOutsideZones.length) console.log(cellsOutsideZones.length, "cells don't belong to a zone:", cellsOutsideZones.join());
 
 display(Map.board, ttys.stdout, function(cell) {
   const zone = Map.zone(cell.x, cell.y);

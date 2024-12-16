@@ -1,5 +1,7 @@
+import Map from "./map.js";
 import { Corridor } from "./zone.js";
 import Tiers from "./tier.js";
+import { syncTiers } from "./tier.js";
 
 const TRACE = false;
 const SPAN = 8;
@@ -10,8 +12,8 @@ export default class Wall extends Corridor {
 
   isWall = true;
 
-  constructor(x, y, r, blueprint) {
-    super(x, y, r);
+  constructor(cell, r, blueprint) {
+    super(cell, r);
 
     this.blueprint = blueprint;
 
@@ -19,19 +21,18 @@ export default class Wall extends Corridor {
   }
 
   getPlot(type) {
-    if (type.name === "Pylon") {
-      return this.blueprint.pylon;
-    } else if (type.name === "ShieldBattery") {
-      return this.blueprint.battery;
-    } else if (!this.blueprint.left.isTaken) {
-      this.blueprint.left.isTaken = true;
-      return this.blueprint.left;
-    } else if (!this.blueprint.center.isTaken) {
-      this.blueprint.center.isTaken = true;
-      return this.blueprint.center;
-    } else if (!this.blueprint.right.isTaken) {
-      this.blueprint.right.isTaken = true;
-      return this.blueprint.right;
+    const blueprint = this.blueprint;
+
+    if ((type === "Pylon") || (type.name === "Pylon")) {
+      return blueprint.pylon;
+    } else if ((type === "ShieldBattery") || (type.name === "ShieldBattery")) {
+      return Map.accepts(blueprint.battery, blueprint.battery.x, blueprint.battery.y, 2) ? blueprint.battery : null;
+    } else if (Map.accepts(blueprint.left, blueprint.left.x, blueprint.left.y, 3)) {
+      return blueprint.left;
+    } else if (Map.accepts(blueprint.center, blueprint.center.x, blueprint.center.y, 3)) {
+      return blueprint.center;
+    } else if (Map.accepts(blueprint.right, blueprint.right.x, blueprint.right.y, 3)) {
+      return blueprint.right;
     }
   }
 
@@ -78,6 +79,7 @@ export function createWalls(board) {
 
   if (blueprint) {
     setBlueprintToCorridor(board, corridorToWall, center, blueprint);
+    syncTiers(true);
   } else {
     console.log("WARNING! Unable to create wall blueprint!");
   }
@@ -148,9 +150,22 @@ function setBlueprintToCorridor(board, corridor, center, blueprint) {
   blueprint.rally.x += center.x - SPAN + 0.5;
   blueprint.rally.y += center.y - SPAN + 0.5;
 
-  const wall = new Wall(blueprint.rally.x, blueprint.rally.y, SPAN, blueprint);
+  const wall = new Wall(board.cells[Math.floor(blueprint.rally.y)][Math.floor(blueprint.rally.x)], SPAN, blueprint);
 
   wall.replace(corridor);
+
+  // Set the wall as in fire range in neighbor zones
+  const { base, field } = getBaseAndField(wall);
+  wall.range.zones.add(base);
+  wall.range.zones.add(wall);
+  wall.range.zones.add(field);
+  wall.range.fire.add(wall);
+  wall.range.fire.add(field);
+  wall.range.front.add(base);
+  base.range.zones.add(wall);
+  base.range.fire.add(wall);
+  field.range.zones.add(wall);
+  field.range.fire.add(wall);
 
   // Set the wall as the zone to all cells near the wall
   for (const one of [blueprint.left, blueprint.center, blueprint.right]) {
@@ -162,6 +177,21 @@ function setBlueprintToCorridor(board, corridor, center, blueprint) {
   for (const one of [blueprint.choke, blueprint.rally]) {
     assignCellsToWall(board, wall, one.x - 0.5, one.x - 0.5, one.y - 0.5, one.y - 0.5);
   }
+}
+
+function getBaseAndField(wall) {
+  let base;
+  let field;
+
+  for (const zone of wall.zones) {
+    if (zone.tier.level > wall.tier.level) {
+      field = zone;
+    } else {
+      base = zone;
+    }
+  }
+
+  return { base, field };
 }
 
 function assignCellsToWall(board, wall, minx, maxx, miny, maxy) {
