@@ -34,6 +34,7 @@ class Types {
       type.isBuilding = isBuilding && !isNeutral;
       type.isMinerals = !!unit.hasMinerals;
       type.isVespene = !!unit.hasVespene && !unit.race;
+      type.isRich = (unit.name.indexOf("Rich") >= 0);
 
       units.set(unit.unitId, type);
       units.set(unit.name, type);
